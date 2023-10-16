@@ -22,26 +22,60 @@ import {
   FormMessage,
 } from "./ui/form";
 import { Input } from "./ui/input";
-import { Select, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { SelectContent } from "@radix-ui/react-select";
+import {
+  Select,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+} from "./ui/select";
 import { CollectionColor, CollectionColors } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { Separator } from "./ui/separator";
+import { Button } from "./ui/button";
+import { createCollection } from "@/actions/collections";
+import { toast } from "./ui/use-toast";
+import { ReloadIcon } from "@radix-ui/react-icons";
+import { useRouter } from "next/navigation";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
-
 function CreateCollectionSheet({ open, onOpenChange }: Props) {
   const form = useForm<createCollectionSchemaType>({
     resolver: zodResolver(createCollectionSchema),
     defaultValues: {},
   });
-  const onSumbit = (data: createCollectionSchemaType) => {
-    console.log("SUBMITTED", data);
+
+  const router = useRouter();
+
+  const onSumbit = async (data: createCollectionSchemaType) => {
+    try {
+      await createCollection(data);
+      openChangeWrapper(false);
+      router.refresh();
+
+      toast({
+        title: "Success",
+        description: "Collection created successfully",
+      });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Plese try again later",
+        variant: "destructive",
+      });
+    }
   };
+
+  const openChangeWrapper = (open: boolean) => {
+    form.reset();
+    onOpenChange(open);
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={openChangeWrapper}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Add new collection</SheetTitle>
@@ -50,7 +84,10 @@ function CreateCollectionSheet({ open, onOpenChange }: Props) {
           </SheetDescription>
         </SheetHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSumbit)}>
+          <form
+            onSubmit={form.handleSubmit(onSumbit)}
+            className="space-y-4 flex flex-col"
+          >
             <FormField
               control={form.control}
               name="name"
@@ -72,8 +109,13 @@ function CreateCollectionSheet({ open, onOpenChange }: Props) {
                 <FormItem>
                   <FormLabel>Color</FormLabel>
                   <FormControl>
-                    <Select>
-                      <SelectTrigger>
+                    <Select onValueChange={(color) => field.onChange(color)}>
+                      <SelectTrigger
+                        className={cn(
+                          "w-full h-8 text-white",
+                          CollectionColors[field.value as CollectionColor]
+                        )}
+                      >
                         <SelectValue
                           placeholder="color"
                           className="w-full h-8"
@@ -104,6 +146,23 @@ function CreateCollectionSheet({ open, onOpenChange }: Props) {
             />
           </form>
         </Form>
+        <div className="flex flex-col gap-3 mt-4">
+          <Separator />
+          <Button
+            disabled={form.formState.isSubmitting}
+            variant={"outline"}
+            className={cn(
+              form.watch("color") &&
+                CollectionColors[form.getValues("color") as CollectionColor]
+            )}
+            onClick={form.handleSubmit(onSumbit)}
+          >
+            Confirm
+            {form.formState.isSubmitting && (
+              <ReloadIcon className="ml-2 h-4 w-4 animate-spin" />
+            )}
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   );
